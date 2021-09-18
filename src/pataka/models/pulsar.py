@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt  # type: ignore
 
 from textwrap import dedent
 
-from .noise import noise
-from .propagate import disp
-from .propagate import codisp
-from .profiles import vonmises
-from .profiles import gaussian
+from pataka.noise import noise
+from pataka.propagate import disp
+from pataka.propagate import codisp
+from pataka.profiles import vonmises
+from pataka.profiles import gaussian
 
 
 @attr.s(repr=False, auto_attribs=True)
@@ -25,12 +25,18 @@ class Pulsar(object):
     dt: float
     df: float
     f0: float
+    tobs: float
     ducy: float
     snr: float
     offset: float
     spectral: float
-    freqcut: float
     pulse: str
+
+    def __str__(self) -> str:
+        return f"Pulsar (P = {self.p}, DM = {self.dm})"
+
+    def __repr__(self) -> str:
+        return str(self)
 
     @classmethod
     def make(
@@ -46,7 +52,6 @@ class Pulsar(object):
         snr: float = 5.0,
         offset: float = 0.5,
         spectral: float = 2.0,
-        freqcut: float = 0.0,
         pulse: str = "vonmises",
     ):
 
@@ -64,8 +69,8 @@ class Pulsar(object):
         N = noise(
             nt=nt,
             nf=nf,
+            cutoff=0.0,
             beta=spectral,
-            cutoff=freqcut,
         )
 
         try:
@@ -95,30 +100,25 @@ class Pulsar(object):
         )
 
         if nf == 1:
-            data = np.concatenate([prof] * ncyc)[: (nt - samples)] + N
+            data = np.concatenate([prof] * ncyc)[: (nt - samples)]
             data = codisp(data=data, dm=dm, f0=f0)
         elif nf > 1:
-            data = (
-                np.asarray([np.concatenate([prof] * ncyc)[: (nt - samples)]] * nf) + N
-            )
-            data = disp(
-                data=data,
-                dm=dm,
-                f0=f0,
-                df=df,
-                dt=dt,
-            )
+            data = np.asarray([np.concatenate([prof] * ncyc)[: (nt - samples)]] * nf)
+            data = disp(data=data, dm=dm, f0=f0, df=df, dt=dt)
         else:
             raise ValueError(
                 dedent(
                     """
-                    The number of frequency channels cannot be less than 1!
-                    Exiting...
+                    The number of frequency channels cannot be less
+                    than 1! Retry with a reasonable value for the 
+                    number of channels. Exiting...
                     """
                 )
                 .replace("\n", " ")
                 .strip()
             )
+
+        data += N
 
         return cls(
             data=data,
@@ -129,11 +129,11 @@ class Pulsar(object):
             dt=dt,
             df=df,
             f0=f0,
+            tobs=tobs,
             ducy=ducy,
             snr=snr,
             offset=offset,
             spectral=spectral,
-            freqcut=freqcut,
             pulse=pulse,
         )
 
@@ -141,14 +141,27 @@ class Pulsar(object):
 
         """"""
 
-        if self.nf == 1:
-            plt.plot(self.data)
-            plt.xlabel("Time, $t$")
-            plt.ylabel("Amplitude")
-        else:
-            plt.imshow(self.data)
-            plt.xlabel("Time, $t$")
-            plt.ylabel("Frequency, $\\nu$")
+        fig, ax = plt.subplots()
 
-        plt.title(f"Pulsar simulated at P = {self.p} and DM = {self.dm}.")
-        plt.show()
+        if self.nf == 1:
+
+            taxis = np.linspace(
+                start=0.0,
+                num=self.nt,
+                stop=self.tobs,
+            )
+
+            ax.plot(taxis, self.data)
+            ax.set_xlim([0, self.tobs])
+            ax.set_xlabel("Time, $t$, in seconds.")
+            ax.set_ylabel("Amplitude, in arbitrary units.")
+
+        else:
+
+            ax.imshow(self.data)
+            ax.set_xlabel("Time, $t$, in seconds.")
+            ax.set_ylabel("Frequency, $\\nu$, in MHz.")
+
+        ax.set_title(str(self))
+        fig.tight_layout()
+        fig.show()
