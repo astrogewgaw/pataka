@@ -15,16 +15,20 @@ def gaussian(
     """
     Generate a Gaussian pulse profile.
 
-    The Gaussian distribution function, for a given mean μ and standard deviation
-    σ, can be written as: f(x) = (1/(σ * √2 * √π)) * exp(-0.5 * (x - μ)² / σ²).
-    The width of the pulse can be defined as 1/σ². The offset of the pulse from
-    origin is defined by the mean, μ. Since the above form is normalised, it can
-    be scaled up to any desired amplitude by the multiplication of a simple scalar
-    factor.
+    The Gaussian distribution function is given by:
+
+    f(x) = √(1 / 2πσ²) * exp(-(x-μ)²/2σ²),
+
+    where μ is the mean and σ is the standard deviation of the probability
+    distribution. The phase offset of the pulse is represented by the mean,
+    and the width of the pulse can be represented in terms of the full width
+    at half maximum (FWHM) of the peak, given in terms of σ as:
+
+    FWHM = 2√(2ln2)σ.
 
     Args:
         nbins:      The number of bins in the profile.
-        width:      The width of the pulse.
+        width:      The full width at half maximum (FWHM) of the pulse.
         offset:     The phase offset of the pulse from origin.
         amplitude:  The amplitude of the pulse.
     Returns:
@@ -33,8 +37,11 @@ def gaussian(
 
     x = np.arange(nbins, dtype=float)
     z = (x - (offset * nbins)) ** 2
-    f = np.exp(-0.5 * width * z)
-    f *= amplitude * np.sqrt(width / (2 * np.pi))
+    σ = width / (2 * np.sqrt(2 * np.log(2)))
+    f = np.exp(-0.5 * (z / σ ** 2))
+    f = f / np.sqrt(1 / (2 * np.pi * σ ** 2))
+    f = f / f.max()
+    f = amplitude * f
     return f
 
 
@@ -56,8 +63,7 @@ def vonmises(
     of order zero. κ is a measure of concentration: the more the value of κ,
     the narrower the pulse is. We can therefore define the width of the pulse
     as 1/κ. The offset of the pulse is decided by the mean, μ, as it is for a
-    Gaussian profile. The above definition is normalised as well, and we can
-    scale it up similarly by the desired amplitude.
+    Gaussian profile.
 
     Args:
         nbins:      The number of bins in the profile.
