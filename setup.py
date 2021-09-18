@@ -44,11 +44,7 @@ if __name__ == "__main__":
         package_dir={"": "src"},
         packages=find_packages(where="src"),
         setup_requires=["setuptools_scm[toml]>=6.0"],
-        install_requires=[
-            "numpy",
-            "astropy",
-            "matplotlib",
-        ],
+        install_requires=["numpy", "matplotlib"],
         install_package_data=True,
         zip_safe=False,
     )
