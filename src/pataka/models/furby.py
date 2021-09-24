@@ -5,10 +5,9 @@ import matplotlib.pyplot as plt  # type: ignore
 from textwrap import dedent
 
 from pataka.noise import noise
-from pataka.propagate import disp
-from pataka.propagate import codisp
 from pataka.profiles import vonmises
 from pataka.profiles import gaussian
+from pataka.propagate import disperse
 
 
 @attr.s(repr=False, auto_attribs=True)
@@ -83,7 +82,7 @@ class Furby(object):
                 .strip()
             )
 
-        prof = f(
+        profile = f(
             nbins=nt,
             width=width,
             offset=offset,
@@ -91,10 +90,9 @@ class Furby(object):
         )
 
         if nf == 1:
-            data = codisp(data=prof, dm=dm, f0=f0)
+            data = profile
         elif nf > 1:
-            data = np.asarray([prof] * nf)
-            data = disp(data=data, dm=dm, f0=f0, df=df, dt=dt)
+            data = np.tile(profile, reps=(nf, 1))
         else:
             raise ValueError(
                 dedent(
@@ -108,7 +106,8 @@ class Furby(object):
                 .strip()
             )
 
-        data += N
+        data = disperse(data=data, dm=dm, f0=f0, df=df, dt=dt)
+        data = data + N
 
         return cls(
             data=data,

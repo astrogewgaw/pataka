@@ -5,10 +5,9 @@ import matplotlib.pyplot as plt  # type: ignore
 from textwrap import dedent
 
 from pataka.noise import noise
-from pataka.propagate import disp
-from pataka.propagate import codisp
 from pataka.profiles import vonmises
 from pataka.profiles import gaussian
+from pataka.propagate import disperse
 
 
 @attr.s(repr=False, auto_attribs=True)
@@ -25,12 +24,12 @@ class Pulsar(object):
     dt: float
     df: float
     f0: float
+    pulse: str
+    snr: float
     tobs: float
     ducy: float
-    snr: float
     offset: float
     spectral: float
-    pulse: str
 
     def __str__(self) -> str:
         return f"Pulsar (P = {self.p}, DM = {self.dm})"
@@ -92,7 +91,7 @@ class Pulsar(object):
                 .strip()
             )
 
-        prof = f(
+        profile = f(
             nbins=nbins,
             width=width,
             offset=offset,
@@ -100,11 +99,9 @@ class Pulsar(object):
         )
 
         if nf == 1:
-            data = np.concatenate([prof] * ncyc)[: (nt - samples)]
-            data = codisp(data=data, dm=dm, f0=f0)
+            data = np.tile(profile, reps=ncyc)[: (nt - samples)]
         elif nf > 1:
-            data = np.asarray([np.concatenate([prof] * ncyc)[: (nt - samples)]] * nf)
-            data = disp(data=data, dm=dm, f0=f0, df=df, dt=dt)
+            data = np.tile(profile, reps=(nf, ncyc))[:, : (nt - samples)]
         else:
             raise ValueError(
                 dedent(
@@ -118,7 +115,8 @@ class Pulsar(object):
                 .strip()
             )
 
-        data += N
+        data = disperse(data=data, dm=dm, f0=f0, df=df, dt=dt)
+        data = data + N
 
         return cls(
             data=data,
@@ -129,12 +127,12 @@ class Pulsar(object):
             dt=dt,
             df=df,
             f0=f0,
+            snr=snr,
             tobs=tobs,
             ducy=ducy,
-            snr=snr,
+            pulse=pulse,
             offset=offset,
             spectral=spectral,
-            pulse=pulse,
         )
 
     def plot(self):
